@@ -5,6 +5,12 @@
 
 class EulerOperation
 {
+private:
+    void AddEdgeIntoSolid(Edge *e,Solid *s);
+    void AddFaceIntoSolid(Face *f, Solid *s);
+    void SetUpEdge(Edge *e, Vertex *sv, Vertex *ev, HalfEdge *he1, HalfEdge *he2);
+    void LinkHEtoV(HalfEdge *he_i, HalfEdge *he_o, Vertex *v, Loop *lp);
+
 public:
     EulerOperation();
 
