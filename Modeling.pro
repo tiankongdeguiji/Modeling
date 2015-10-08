@@ -15,4 +15,9 @@ CONFIG   -= app_bundle
 TEMPLATE = app
 
 
-SOURCES += main.cpp
+SOURCES += main.cpp \
+    euleroperation.cpp
+
+HEADERS += \
+    brep_structure.h \
+    euleroperation.h
