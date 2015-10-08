@@ -1,0 +1,5 @@
+#ifndef BREP_STRUCTURE
+#define BREP_STRUCTURE
+
+#endif // BREP_STRUCTURE
+
