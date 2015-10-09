@@ -73,12 +73,12 @@ Loop *EulerOperation::mef(Vertex *sv, Vertex *ev, Loop *lp)
     LinkHEtoV(he2, he1, sv, lp);
     LinkHEtoV(he1, he2, ev, lp);
 
-    // 分离成两个独立的环
-    lp->halfedges = he1;
-    he1->loop = lp;
-    l->halfedges = he2;
-    he2->loop = l;
-    for (HalfEdge *he = he2->next; he != he2 ;he = he->next) he->loop = l;
+    // 分离成两个独立的环   
+    lp->halfedges = he2;
+    he2->loop = lp;
+    l->halfedges = he1;
+    he1->loop = l;
+    for (HalfEdge *he = he1->next; he != he1 ;he = he->next) he->loop = l;
 
     f->loops = l;
     AddFaceIntoSolid(f, s);
@@ -88,7 +88,8 @@ Loop *EulerOperation::mef(Vertex *sv, Vertex *ev, Loop *lp)
 
 // 功能：以环上两个给定点，删除该边建造一个内环
 // 输入：sv-边的起点(外环、内环)，ev-边的终点(内环)，lp-环
-Loop *EulerOperation::kemr(Vertex *sv, Vertex *ev, Loop *lp) {
+Loop *EulerOperation::kemr(Vertex *sv, Vertex *ev, Loop *lp)
+{
     Solid *s = lp->face->solid;
     Face *f = lp->face;
     Loop *l = new Loop;
@@ -106,7 +107,7 @@ Loop *EulerOperation::kemr(Vertex *sv, Vertex *ev, Loop *lp) {
     lp->halfedges = he_a->prev;
     l->halfedges = he_b->prev;
 
-    // 把内环加入链表中
+    // 把内环加入面的环链表中
     Loop *lp_t = f->loops;
     while (lp_t->next != NULL) lp_t = lp_t->next;
     lp_t->next = l;
@@ -116,6 +117,76 @@ Loop *EulerOperation::kemr(Vertex *sv, Vertex *ev, Loop *lp) {
     delete he_b;
 
     return l;
+}
+
+// 功能：删除一个面，将其变成一个内环，同时形成一个柄
+// 输入：f1-添加内环的面，f2-删除的面
+void EulerOperation::kfmrh(Face *f1, Face *f2)
+{
+    Solid *s = f1->solid;
+    Face *f = s->faces;
+    Loop *l = f2->loops;
+
+    // 把内环加入f1面的内环链表中
+    Loop *lp_t = f->loops;
+    while (lp_t->next != NULL) lp_t = lp_t->next;
+    lp_t->next = l;
+    l->prev = lp_t;
+
+    // 将面从体的面表中删除
+    if (f == f2) {
+        s->faces = f->next;
+        s->faces->prev = NULL;
+    } else {
+        while (f->next != f2 && f->next != NULL) f = f->next;
+        f->next = f->next->next;
+        f->next->prev = f;
+    }
+
+    delete f2;
+}
+
+// 扫成操作
+// 输入：f-扫成面，dir-扫成方向，d-扫成距离
+void EulerOperation::sweep(Face *f, double dir[3], double d)
+{
+    Loop *l = f->loops, *l_out = f->loops;
+    Vertex *v_first, *v_next, *v_up, *v_up_pre;
+    HalfEdge *he;
+    double p[3];
+    bool out_flag = true;   // 外环标志
+
+    while (l != NULL) {
+        // 建造环上第一个点和其向上扫成的up点之间的边
+        p[0] = v_first->vcoord[0] + d*dir[0];
+        p[1] = v_first->vcoord[1] + d*dir[1];
+        p[2] = v_first->vcoord[2] + d*dir[2];
+        he = l->halfedges;
+        v_first = he->startv;
+        v_up_pre = mev(v_first, p, l)->endv;
+
+        // 循环扫成环上的其他点
+        v_next = (he = he->next)->startv;
+        while (v_next != v_first) {
+            // 建造环上第一个点和其向上扫成的up点之间的边
+            p[0] = v_next->vcoord[0] + d*dir[0];
+            p[1] = v_next->vcoord[1] + d*dir[1];
+            p[2] = v_next->vcoord[2] + d*dir[2];
+            v_up = mev(v_next, p, l)->endv;
+            // 链接当前up点和起一个up点构造侧面
+            mef(v_up_pre, v_up, l);
+
+            v_up_pre = v_up;
+            v_next = (he = he->next)->startv;
+        }
+        mef(v_up_pre, v_first, l);
+
+        // 内环建造柄
+        if (out_flag) out_flag = false;
+        else kfmrh(l_out->face, l->face);
+
+        l = l->next;
+    }
 }
 
 // 功能：将一条半边添加到体的半边链表中

@@ -19,6 +19,8 @@ public:
     Loop *mef(Vertex *sv, Vertex *ev, Loop *lp);
     Loop *kemr(Vertex *sv, Vertex *ev, Loop *lp);
     void kfmrh(Face *f1, Face *f2);
+
+    void sweep(Face *f, double dir[3], double d);
 };
 
 #endif // EULEROPERATION_H
