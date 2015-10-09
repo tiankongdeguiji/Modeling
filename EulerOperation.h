@@ -1,7 +1,7 @@
 #ifndef EULEROPERATION_H
 #define EULEROPERATION_H
 
-#include "brep_structure.h"
+#include "BRep.h"
 
 class EulerOperation
 {

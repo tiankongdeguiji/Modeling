@@ -16,8 +16,8 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp \
-    euleroperation.cpp
+    EulerOperation.cpp
 
 HEADERS += \
-    brep_structure.h \
-    euleroperation.h
+    BRep.h \
+    EulerOperation.h

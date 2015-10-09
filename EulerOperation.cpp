@@ -1,4 +1,4 @@
-#include "euleroperation.h"
+#include "EulerOperation.h"
 
 EulerOperation::EulerOperation()
 {
