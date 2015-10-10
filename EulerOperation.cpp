@@ -44,7 +44,7 @@ HalfEdge *EulerOperation::mev(Vertex *sv, double p[3], Loop *lp)
     he1->next = he2;
     he2->prev = he1;
     he1->loop = he2->loop = lp;
-    if (lp->halfedges = NULL) {
+    if (lp->halfedges == NULL) {
         he2->next = he1;
         he1->prev = he2;
         lp->halfedges = he1;
@@ -90,12 +90,12 @@ Loop *EulerOperation::mef(Vertex *sv, Vertex *ev, Loop *lp)
 // 输入：sv-边的起点(外环、内环)，ev-边的终点(内环)，lp-环
 Loop *EulerOperation::kemr(Vertex *sv, Vertex *ev, Loop *lp)
 {
-    Solid *s = lp->face->solid;
     Face *f = lp->face;
     Loop *l = new Loop;
 
     HalfEdge *he_t, *he_a, *he_b;
     // 找到连接内外环的两条半边
+    he_t = lp->halfedges;
     while(he_t->startv != sv || he_t->endv != ev) he_t = he_t->next;
     he_a = he_t;
     while(he_t->startv != ev || he_t->endv != sv) he_t = he_t->next;
