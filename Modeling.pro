@@ -4,20 +4,24 @@
 #
 #-------------------------------------------------
 
-QT       += core
+QT       += core gui
 
-QT       -= gui
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = Modeling
-CONFIG   += console
-CONFIG   -= app_bundle
 
 TEMPLATE = app
 
 
 SOURCES += main.cpp \
-    EulerOperation.cpp
+    EulerOperation.cpp \
+    GLWidget.cpp \
+    RenderEngine.cpp
 
 HEADERS += \
     BRep.h \
-    EulerOperation.h
+    EulerOperation.h \
+    GLWidget.h \
+    RenderEngine.h
+
+RESOURCES += shaders.qrc
