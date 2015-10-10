@@ -50,7 +50,6 @@
 #include <QQuaternion>
 #include <QVector4D>
 #include <QVector3D>
-#include <QVector2D>
 
 struct DirectionalLight {
     QVector4D Ambient;
