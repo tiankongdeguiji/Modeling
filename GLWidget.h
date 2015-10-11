@@ -62,7 +62,6 @@ protected:
     void wheelEvent(QWheelEvent *e) Q_DECL_OVERRIDE;
     void mousePressEvent(QMouseEvent *e) Q_DECL_OVERRIDE;
     void mouseMoveEvent(QMouseEvent *e) Q_DECL_OVERRIDE;
-    void mouseReleaseEvent(QMouseEvent *e) Q_DECL_OVERRIDE;
 
     void initializeGL() Q_DECL_OVERRIDE;
     void resizeGL(int w, int h) Q_DECL_OVERRIDE;
@@ -82,7 +81,6 @@ private:
     qreal radioScreenToView;
 
     qreal scrollDelta;
-    QVector2D scrollPos;
     QVector2D newMousePos, oldMousePos;
 };
 

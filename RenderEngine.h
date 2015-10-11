@@ -50,6 +50,11 @@
 #include <QQuaternion>
 #include <QVector4D>
 #include <QVector3D>
+#include <QVector2D>
+#include <vector>
+
+#include "EulerOperation.h"
+#include "polypartition.h"
 
 struct DirectionalLight {
     QVector4D Ambient;
@@ -78,6 +83,10 @@ private:
 
     bool InitShaders();
     void InitModel();
+    bool Triangulate(Face *f, std::vector<QVector3D> &vertexs, std::vector<int> &indices);
+
+    vector<QVector3D> m_vertexs;
+    vector<int> m_indices;
 
     QOpenGLShaderProgram program;
 
@@ -85,6 +94,7 @@ private:
 
     QOpenGLBuffer vertexBuffer;
     QOpenGLBuffer indexBuffer;
+    QOpenGLBuffer innerBuffer;
     QOpenGLVertexArrayObject vao;
 
     QMatrix4x4 projection;

@@ -50,12 +50,11 @@ GLWidget::GLWidget(QWidget *parent) :
     renderer(0),
     scrollDelta(0)
 {
-    rotation = QQuaternion::fromAxisAndAngle(QVector3D(1, 0.34, 0.5), -80);
+    rotation = QQuaternion::fromAxisAndAngle(QVector3D(1, 1, 1), -30);
 }
 
 GLWidget::~GLWidget()
 {
-    // Make sure the context is current when deleting the texture and the buffers.
     makeCurrent();
     delete renderer;
     doneCurrent();
@@ -63,9 +62,9 @@ GLWidget::~GLWidget()
 
 void GLWidget::wheelEvent(QWheelEvent *e)
 {
+    // 计算缩放量
     scrollDelta +=  e->delta() / 1200.0;
     if(scrollDelta > 0.9) scrollDelta = 0.9;
-    scrollPos = QVector2D(e->pos());
     update();
 }
 
@@ -78,7 +77,9 @@ void GLWidget::mousePressEvent(QMouseEvent *e)
 void GLWidget::mouseMoveEvent(QMouseEvent *e)
 {
      newMousePos = QVector2D(e->localPos());
+     // 左键控制旋转，计算新的rotation
      if(e->buttons() & Qt::LeftButton) updateRotation();
+     // 中间控制拖动，计算新的translation
      if(e->buttons() & Qt::MidButton) translation += (newMousePos - oldMousePos) / radioScreenToView;
      oldMousePos = QVector2D(e->localPos());
      update();
@@ -86,64 +87,48 @@ void GLWidget::mouseMoveEvent(QMouseEvent *e)
 
 void GLWidget::updateRotation()
 {
-
     QVector3D v = getArcBallVector(oldMousePos);
     QVector3D u = getArcBallVector(newMousePos);
 
+    // 根据算得的轨迹球上的两个向量计算旋转轴和旋转角度
     float angle = std::acos(std::min(1.0f, QVector3D::dotProduct(u,v)));
-
     QVector3D rotAxis = QVector3D::crossProduct(v,u);
-
 //    QMatrix4x4 eye2ObjSpaceMat = rotationMat.inverted();
-
 //    QVector3D objSpaceRotAxis = eye2ObjSpaceMat * rotAxis;
-
+    // 计算新的rotation（四元数）
     rotation = QQuaternion::fromAxisAndAngle(rotAxis,qRadiansToDegrees(angle))*rotation;
 }
 
 QVector3D GLWidget::getArcBallVector(QVector2D mousePos)
 {
+   // 计算屏幕坐标在轨迹球上的xy坐标
    QVector3D pt = QVector3D(2.0 * mousePos.x() / GLWidget::width() - 1.0, 2.0 * mousePos.y() / GLWidget::height() - 1.0 , 0);
    pt.setY(pt.y() * -1);
 
-   // compute z-coordinates
-
+   // 计算在轨迹球上的z轴坐标
    float xySquared = pt.x() * pt.x() + pt.y() * pt.y();
-
    if(xySquared <= 1.0)
-
        pt.setZ(std::sqrt(1.0 - xySquared));
    else
        pt.normalize();
-
    return pt;
-
-}
-
-void GLWidget::mouseReleaseEvent(QMouseEvent *e)
-{
 }
 
 void GLWidget::initializeGL()
 {
     renderer = new RenderEngine;
-
     if(!renderer->InitRenderEngine()) close();
-
-    scrollPos = QVector2D(GLWidget::width()/2.0, GLWidget::height()/2.0);
 }
 
 void GLWidget::resizeGL(int w, int h)
 {
-    // Calculate aspect ratio
+    // 计算屏幕宽高比
     aspect = qreal(w) / qreal(h ? h : 1);
-
     // 屏幕坐标和视口坐标的比例
     radioScreenToView = h / 10.0;
 
     const qreal zNear = -100.0, zFar = 100.0;
-
-    // projection
+    // 计算projection
     projection.setToIdentity();  
     projection.ortho(-5.0*aspect, 5.0*aspect, -5.0, 5.0, zNear, zFar);
 }

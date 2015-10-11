@@ -39,9 +39,12 @@
 ****************************************************************************/
 
 #include "RenderEngine.h"
+#include <cmath>
+using namespace std;
 
 RenderEngine::RenderEngine()
-    : indexBuffer(QOpenGLBuffer::IndexBuffer)
+    : indexBuffer(QOpenGLBuffer::IndexBuffer),
+    innerBuffer(QOpenGLBuffer::IndexBuffer)
 {
     // 设置平行光的参数
     mDirLight.Ambient  = QVector4D(0.2f, 0.2f, 0.2f, 1.0f);
@@ -61,7 +64,7 @@ void RenderEngine::SetProjection(QMatrix4x4 proj) {projection = proj;}
 void RenderEngine::SetViewRotation(QQuaternion rot) {rotation = rot;}
 void RenderEngine::SetViewTranslation(QVector3D trans) {translation = trans;}
 void RenderEngine::SetViewScale(qreal s) {scale = s;}
-void RenderEngine::ClearBuffers() {glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);}
+void RenderEngine::ClearBuffers() {glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);}
 
 bool RenderEngine::InitRenderEngine()
 {
@@ -75,6 +78,7 @@ bool RenderEngine::InitRenderEngine()
 
     InitModel();
 
+    // 设置光照参数,  设置视口
     program.setUniformValue("light.Ambient", mDirLight.Ambient);
     program.setUniformValue("light.Diffuse", mDirLight.Diffuse);
     program.setUniformValue("light.Specular", mDirLight.Specular);
@@ -84,6 +88,7 @@ bool RenderEngine::InitRenderEngine()
     return true;
 }
 
+// 编译和绑定shader
 bool RenderEngine::InitShaders()
 {
     if (!program.addShaderFromSourceFile(QOpenGLShader::Vertex, ":/vshader.glsl")) return false;
@@ -93,99 +98,205 @@ bool RenderEngine::InitShaders()
     return true;
 }
 
+// 初始化模型数据
 void RenderEngine::InitModel()
 {
-    QVector3D vertices[] = {
-            // Vertex data for face 0
-            QVector3D(-1.0f, -1.0f,  1.0f), // v0
-            QVector3D( 1.0f, -1.0f,  1.0f), // v1
-            QVector3D(-1.0f,  1.0f,  1.0f), // v2
-            QVector3D( 1.0f,  1.0f,  1.0f), // v3
+    EulerOperation euler;
+    double p[] = {
+        -4.0, -2.0,  2.0,
+         4.0, -2.0,  2.0,
+         4.0,  2.0,  2.0,
+        -4.0,  2.0,  2.0,
+        -3.0,  1.0,  2.0,
+        -1.0,  1.0,  2.0,
+        -1.0, -1.0,  2.0,
+        -3.0, -1.0,  2.0,
+         1.0,  1.0,  2.0,
+         3.0,  1.0,  2.0,
+         3.0, -1.0,  2.0,
+         1.0, -1.0,  2.0,
+    };
 
-            // Vertex data for face 1
-            QVector3D( 1.0f, -1.0f,  1.0f), // v4
-            QVector3D( 1.0f, -1.0f, -1.0f), // v5
-            QVector3D( 1.0f,  1.0f,  1.0f), // v6
-            QVector3D( 1.0f,  1.0f, -1.0f), // v7
+    Solid *s;
+    Loop *lp;
+    HalfEdge *he, *he_kill;
+    Vertex *v;
+    s = euler.mvfs(v, p);
+    lp = s->faces->loops;
+    he = euler.mev(v, p+3, lp);
+    he = euler.mev(he->endv, p+6, lp);
+    he = euler.mev(he->endv, p+9, lp);
+    euler.mef(he->endv, v, lp);
+    he_kill = he = euler.mev(he->endv, p+12, lp);
+    he = euler.mev(he->endv, p+15, lp);
+    he = euler.mev(he->endv, p+18, lp);
+    he = euler.mev(he->endv, p+21, lp);
+    euler.mef(he->endv, he_kill->endv, lp);
+    euler.kemr(he_kill->startv, he_kill->endv, lp);
+    he_kill = he = euler.mev(he_kill->startv, p+24, lp);
+    he = euler.mev(he->endv, p+27, lp);
+    he = euler.mev(he->endv, p+30, lp);
+    he = euler.mev(he->endv, p+33, lp);
+    euler.mef(he->endv, he_kill->endv, lp);
+    euler.kemr(he_kill->startv, he_kill->endv, lp);
 
-            // Vertex data for face 2
-            QVector3D( 1.0f, -1.0f, -1.0f), // v8
-            QVector3D(-1.0f, -1.0f, -1.0f), // v9
-            QVector3D( 1.0f,  1.0f, -1.0f), // v10
-            QVector3D(-1.0f,  1.0f, -1.0f), // v11
+    double dir[3] = {0,0,-1};
+    euler.sweep(lp->face, dir, 2);
 
-            // Vertex data for face 3
-            QVector3D(-1.0f, -1.0f, -1.0f), // v12
-            QVector3D(-1.0f, -1.0f,  1.0f), // v13
-            QVector3D(-1.0f,  1.0f, -1.0f), // v14
-            QVector3D(-1.0f,  1.0f,  1.0f), // v15
+    for(Face *f = s->faces; f != NULL; f = f->next) {
+        Triangulate(f, m_vertexs, m_indices);
+    }
 
-            // Vertex data for face 4
-            QVector3D(-1.0f, -1.0f, -1.0f), // v16
-            QVector3D( 1.0f, -1.0f, -1.0f), // v17
-            QVector3D(-1.0f, -1.0f,  1.0f), // v18
-            QVector3D( 1.0f, -1.0f,  1.0f), // v19
-
-            // Vertex data for face 5
-            QVector3D(-1.0f,  1.0f,  1.0f), // v20
-            QVector3D( 1.0f,  1.0f,  1.0f), // v21
-            QVector3D(-1.0f,  1.0f, -1.0f), // v22
-            QVector3D( 1.0f,  1.0f, -1.0f)  // v23
-        };
-
-        GLushort indices[] = {
-             0,  1,  2,  3,  3,     // Face 0 - triangle strip ( v0,  v1,  v2,  v3)
-             4,  4,  5,  6,  7,  7, // Face 1 - triangle strip ( v4,  v5,  v6,  v7)
-             8,  8,  9, 10, 11, 11, // Face 2 - triangle strip ( v8,  v9, v10, v11)
-            12, 12, 13, 14, 15, 15, // Face 3 - triangle strip (v12, v13, v14, v15)
-            16, 16, 17, 18, 19, 19, // Face 4 - triangle strip (v16, v17, v18, v19)
-            20, 20, 21, 22, 23      // Face 5 - triangle strip (v20, v21, v22, v23)
-        };
-
-        vertexBuffer.create();
-        vertexBuffer.setUsagePattern(QOpenGLBuffer::StaticDraw);
-        indexBuffer.create();
-        indexBuffer.setUsagePattern(QOpenGLBuffer::StaticDraw);
-        vao.create();
-
-        vao.bind();
-
-    //    // 将double转换为float，int转换为uint增加渲染效率
-    //    std::vector<QVector3D> vertexs;
-    //    std::vector<QVector3D> normals;
-    //    for (int i = 0; i < pn;i++) {
-    //        vertexs.push_back(QVector3D(mesh->points[i][0], mesh->points[i][1], mesh->points[i][2]));
-    //        normals.push_back(QVector3D(mesh->normals[i][0], mesh->normals[i][1], mesh->normals[i][2]));
-    //    }
-
-        vertexBuffer.bind();
-        vertexBuffer.allocate(vertices, 24 * sizeof(QVector3D));
-        indexBuffer.bind();
-        indexBuffer.allocate(indices, 34 * sizeof(GLushort));
-
-        program.enableAttributeArray(0);
-        program.setAttributeBuffer(0, GL_FLOAT, 0, 3, sizeof(QVector3D));
-
-        vao.release();
+    // 建立VAO和VBO
+    vertexBuffer.create();
+    vertexBuffer.setUsagePattern(QOpenGLBuffer::StaticDraw);
+    indexBuffer.create();
+    indexBuffer.setUsagePattern(QOpenGLBuffer::StaticDraw);
+    innerBuffer.create();
+    innerBuffer.setUsagePattern(QOpenGLBuffer::StaticDraw);
+    vao.create();
+    // 设置Buffer和制定顶点Attribute
+    vao.bind();
+    vertexBuffer.bind();
+    vertexBuffer.allocate(m_vertexs.data(), m_vertexs.size() * sizeof(QVector3D));
+    indexBuffer.bind();
+    indexBuffer.allocate(m_indices.data(), m_indices.size() * sizeof(int));
+    program.enableAttributeArray(0);
+    program.setAttributeBuffer(0, GL_FLOAT, 0, 3, sizeof(QVector3D));
+    vao.release();
 }
 
+// 绘制模型
 void RenderEngine::DrawModel()
 {
     vao.bind();
 
+    // 计算模型矩阵
     QMatrix4x4 modelview;
     modelview.translate(translation);
     modelview.rotate(rotation);
     modelview.scale(scale);
 
-    // Set modelview-projection matrix
+    // 设置MVP
     program.setUniformValue("mvp_matrix", projection * modelview);
     program.setUniformValue("mv_matrix", modelview);
-
+    // 设置材质
     program.setUniformValue("mat.Ambient", 7.0/255.0, 174.0/255.0, 235.0/255.0, 1.0);
     program.setUniformValue("mat.Diffuse", 7.0/255.0, 174.0/255.0, 235.0/255.0, 1.0);
-    program.setUniformValue("mat.Specular", 0.5f, 0.5f, 0.5f, 16.0);
+    program.setUniformValue("mat.Specular", 0.3f, 0.3f, 0.3f, 16.0);
 
-    glDrawElements(GL_TRIANGLE_STRIP, 34, GL_UNSIGNED_SHORT, 0);
+    glDrawElements(GL_TRIANGLES, m_indices.size(), GL_UNSIGNED_INT, 0);
+
     vao.release();
+}
+
+// 功能：带洞的面片三角化
+// 参数：f-Brep结构的面，vertexs-物体的顶点数组(返回), indices-物体的顶点索引(返回)
+bool RenderEngine::Triangulate(Face *f, vector<QVector3D> &vertexs, vector<int> &indices)
+{
+    Loop *lp = f->loops;
+    HalfEdge *he = lp->halfedges;
+    Vertex *v;
+    
+    // 计算面法向
+    v = he->startv;
+    QVector3D A = QVector3D(v->vcoord[0], v->vcoord[1], v->vcoord[2]);
+    v = he->next->startv;
+    QVector3D B = QVector3D(v->vcoord[0], v->vcoord[1], v->vcoord[2]);
+    v = he->next->next->startv;
+    QVector3D C = QVector3D(v->vcoord[0], v->vcoord[1], v->vcoord[2]);
+    QVector3D n = QVector3D::crossProduct(B-A, C-B).normalized();
+
+    // 计算投影矩阵
+    QMatrix4x4 Rx, Ry;
+	double sinA,cosA,sinB,cosB;
+    if(fabs(n[1]) < 10e-6)
+        sinA = 0, cosA = 1;
+    else {
+        sinA = n[1] / sqrt(n[1]*n[1]+n[2]*n[2]);
+        cosA = n[2] / sqrt(n[1]*n[1]+n[2]*n[2]);
+	}
+    Rx.setToIdentity();
+    Rx(1,1) = Rx(2,2) = cosA;
+    Rx(1,2) = -sinA; Rx(2,1) = sinA;
+    n = Rx * n;
+    if(fabs(n[0]) < 10e-6)
+		sinB=0,cosB=n[2];
+    else {
+        sinB = -n[0] / sqrt(n[0]*n[0]+n[2]*n[2]);
+        cosB = n[2] / sqrt(n[0]*n[0]+n[2]*n[2]);
+	}
+    Ry.setToIdentity();
+    Ry(0,0) = Ry(2,2) = cosB;
+    Ry(0,2) = sinB, Ry(2,0) = -sinB;
+    n = Ry * n;
+    QMatrix4x4 R = Ry * Rx;
+
+    // 将面投影到二维平面上
+    vector<vector<QVector2D> > face_2d; // 投影的二维面
+    QVector3D p;
+    int v_num = vertexs.size();         // 缓存之前顶点个数
+    int index;
+    while(lp != NULL) {
+        vector<QVector2D> loop_2d;
+        index = 0;
+        he = lp->halfedges;
+        v = he->startv;
+        while(true) {
+            p = QVector3D(v->vcoord[0], v->vcoord[1], v->vcoord[2]);
+            vertexs.push_back(p);
+            p = R * p;
+            loop_2d.push_back(QVector2D(p[0], p[1]));
+            v = (he = he->next)->startv;
+            index++;
+            if (he == lp->halfedges) break;
+        }
+        face_2d.push_back(loop_2d);
+        lp = lp->next;     
+    }
+
+    // 三角剖分
+    list<TPPLPoly> input;
+    bool inner_flag = false;
+    for(int i = 0; i < face_2d.size(); i++) {
+        TPPLPoly p;
+        vector<QVector2D> loop_2d = face_2d[i];
+        p.Init(loop_2d.size());
+        for(int j = 0; j < loop_2d.size(); j++) {
+            p[j].x = loop_2d[j][0];
+            p[j].y = loop_2d[j][1];
+            p.SetHole(inner_flag);         
+        }
+        input.push_back(p);
+        if(!inner_flag) inner_flag = true;
+    }
+    list<TPPLPoly> output;
+    int res = TPPLPartition().Triangulate_MONO(&input, &output);
+    if (res != 1) return false;
+
+    // 输出返回顶点索引
+    QVector2D ptemp;
+    int offset;
+    bool find = false;
+    for (list<TPPLPoly>::iterator poly = output.begin(); poly != output.end(); poly++) {
+        for (int i = 0; i < 3; i++) {
+            offset = 0;
+            find = false;
+            ptemp[0]=(*poly)[i].x;
+            ptemp[1]=(*poly)[i].y;
+            for(int j = 0; j < face_2d.size(); j++) {
+                if (find) break;
+                vector<QVector2D> loop_2d = face_2d[j];
+                for(int k = 0; k < loop_2d.size(); k++) {
+                    if((ptemp - loop_2d[k]).length() < 10e-6) {
+                        indices.push_back(v_num + offset + k);
+                        find = true;
+                        break;
+                    }
+                }
+                offset += loop_2d.size();
+            }
+        }
+    }
+    return true;
 }

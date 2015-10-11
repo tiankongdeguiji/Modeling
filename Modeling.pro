@@ -16,12 +16,14 @@ TEMPLATE = app
 SOURCES += main.cpp \
     EulerOperation.cpp \
     GLWidget.cpp \
-    RenderEngine.cpp
+    RenderEngine.cpp \
+    polypartition.cpp
 
 HEADERS += \
     BRep.h \
     EulerOperation.h \
     GLWidget.h \
-    RenderEngine.h
+    RenderEngine.h \
+    polypartition.h
 
 RESOURCES += shaders.qrc
