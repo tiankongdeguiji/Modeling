@@ -50,7 +50,7 @@ GLWidget::GLWidget(QWidget *parent) :
     renderer(0),
     scrollDelta(0)
 {
-    rotation = QQuaternion::fromAxisAndAngle(QVector3D(1, 1, 1), -30);
+//    rotation = QQuaternion::fromAxisAndAngle(QVector3D(1, 1, 1), -30);
 }
 
 GLWidget::~GLWidget()

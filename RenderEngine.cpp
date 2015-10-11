@@ -40,6 +40,7 @@
 
 #include "RenderEngine.h"
 #include <cmath>
+#include <QtMath>
 using namespace std;
 
 RenderEngine::RenderEngine()
@@ -117,6 +118,21 @@ void RenderEngine::InitModel()
          1.0, -1.0,  2.0,
     };
 
+//    double p[] = {
+//        -4.0, -2.0,  2.0,
+//         4.0, -2.0,  2.0,
+//         4.0,  2.0,  2.0,
+//        -4.0,  2.0,  2.0,
+//        -3.0,  1.0,  2.0,
+//        -1.0,  1.0,  2.0,
+//        -1.0, -1.0,  2.0,
+//        -3.0, -1.0,  2.0,
+//         1.0,  1.0,  2.0,
+//         3.0,  1.0,  2.0,
+//         3.0, -1.0,  2.0,
+//         1.0, -1.0,  2.0,
+//    };
+
     Solid *s;
     Loop *lp;
     HalfEdge *he, *he_kill;
@@ -146,6 +162,11 @@ void RenderEngine::InitModel()
     for(Face *f = s->faces; f != NULL; f = f->next) {
         Triangulate(f, m_vertexs, m_indices);
     }
+//    Face *f = s->faces;
+//    for(int i = 0; i < 13; i++) {
+//        f = f->next;
+//    }
+//    Triangulate(f, m_vertexs, m_indices);
 
     // 建立VAO和VBO
     vertexBuffer.create();
@@ -207,30 +228,11 @@ bool RenderEngine::Triangulate(Face *f, vector<QVector3D> &vertexs, vector<int> 
     QVector3D C = QVector3D(v->vcoord[0], v->vcoord[1], v->vcoord[2]);
     QVector3D n = QVector3D::crossProduct(B-A, C-B).normalized();
 
-    // 计算投影矩阵
-    QMatrix4x4 Rx, Ry;
-	double sinA,cosA,sinB,cosB;
-    if(fabs(n[1]) < 10e-6)
-        sinA = 0, cosA = 1;
-    else {
-        sinA = n[1] / sqrt(n[1]*n[1]+n[2]*n[2]);
-        cosA = n[2] / sqrt(n[1]*n[1]+n[2]*n[2]);
-	}
-    Rx.setToIdentity();
-    Rx(1,1) = Rx(2,2) = cosA;
-    Rx(1,2) = -sinA; Rx(2,1) = sinA;
-    n = Rx * n;
-    if(fabs(n[0]) < 10e-6)
-		sinB=0,cosB=n[2];
-    else {
-        sinB = -n[0] / sqrt(n[0]*n[0]+n[2]*n[2]);
-        cosB = n[2] / sqrt(n[0]*n[0]+n[2]*n[2]);
-	}
-    Ry.setToIdentity();
-    Ry(0,0) = Ry(2,2) = cosB;
-    Ry(0,2) = sinB, Ry(2,0) = -sinB;
-    n = Ry * n;
-    QMatrix4x4 R = Ry * Rx;
+    // 计算旋转到xy平面上的四元数
+    float angle = acos(min(1.0f, QVector3D::dotProduct(n,QVector3D(0,0,1))));
+    QVector3D rotAxis = QVector3D::crossProduct(n,QVector3D(0,0,1));
+    QQuaternion rotation = QQuaternion::fromAxisAndAngle(rotAxis,qRadiansToDegrees(angle));
+    if(n[2] + 1 < 10e-6) rotation = QQuaternion(0,0,1,0);   // 方向反向，旋转180度
 
     // 将面投影到二维平面上
     vector<vector<QVector2D> > face_2d; // 投影的二维面
@@ -245,7 +247,7 @@ bool RenderEngine::Triangulate(Face *f, vector<QVector3D> &vertexs, vector<int> 
         while(true) {
             p = QVector3D(v->vcoord[0], v->vcoord[1], v->vcoord[2]);
             vertexs.push_back(p);
-            p = R * p;
+            p = rotation * p;
             loop_2d.push_back(QVector2D(p[0], p[1]));
             v = (he = he->next)->startv;
             index++;
@@ -262,6 +264,9 @@ bool RenderEngine::Triangulate(Face *f, vector<QVector3D> &vertexs, vector<int> 
         TPPLPoly p;
         vector<QVector2D> loop_2d = face_2d[i];
         p.Init(loop_2d.size());
+        if(inner_flag) {
+            int a = 0;
+        }
         for(int j = 0; j < loop_2d.size(); j++) {
             p[j].x = loop_2d[j][0];
             p[j].y = loop_2d[j][1];
@@ -271,7 +276,7 @@ bool RenderEngine::Triangulate(Face *f, vector<QVector3D> &vertexs, vector<int> 
         if(!inner_flag) inner_flag = true;
     }
     list<TPPLPoly> output;
-    int res = TPPLPartition().Triangulate_MONO(&input, &output);
+    int res = TPPLPartition().Triangulate_EC(&input, &output);
     if (res != 1) return false;
 
     // 输出返回顶点索引
