@@ -119,18 +119,14 @@ void RenderEngine::InitModel()
     };
 
 //    double p[] = {
+//        -3.0,  0.0,  2.0,
+//        -4.0,  2.0,  2.0,
 //        -4.0, -2.0,  2.0,
 //         4.0, -2.0,  2.0,
-//         4.0,  2.0,  2.0,
-//        -4.0,  2.0,  2.0,
-//        -3.0,  1.0,  2.0,
-//        -1.0,  1.0,  2.0,
-//        -1.0, -1.0,  2.0,
-//        -3.0, -1.0,  2.0,
-//         1.0,  1.0,  2.0,
-//         3.0,  1.0,  2.0,
-//         3.0, -1.0,  2.0,
-//         1.0, -1.0,  2.0,
+//        -3.5, -0.5,  2.0,
+//        -3.25, -1.25,  2.0,
+//        -3.0, -1.5,  2.0,
+//        -3.5, -1.5,  2.0,
 //    };
 
     Solid *s;
@@ -162,11 +158,7 @@ void RenderEngine::InitModel()
     for(Face *f = s->faces; f != NULL; f = f->next) {
         Triangulate(f, m_vertexs, m_indices);
     }
-//    Face *f = s->faces;
-//    for(int i = 0; i < 13; i++) {
-//        f = f->next;
-//    }
-//    Triangulate(f, m_vertexs, m_indices);
+    Triangulate(lp->face, m_vertexs, m_indices);
 
     // 建立VAO和VBO
     vertexBuffer.create();
@@ -217,22 +209,35 @@ bool RenderEngine::Triangulate(Face *f, vector<QVector3D> &vertexs, vector<int> 
 {
     Loop *lp = f->loops;
     HalfEdge *he = lp->halfedges;
-    Vertex *v;
+    Vertex *v = he->startv;
+    double eps = 10e-6;
     
     // 计算面法向
-    v = he->startv;
+    HalfEdge *he_t = he;
+    double diff[3];
+    // 寻找外环上一个凸点(x坐标最大)所属的半边
+    while(he_t != lp->halfedges) {
+        he_t = he_t->next;
+        diff[0] = he_t->startv->vcoord[0] - he->startv->vcoord[0];
+        diff[1] = he_t->startv->vcoord[1] - he->startv->vcoord[1];
+        diff[2] = he_t->startv->vcoord[2] - he->startv->vcoord[2];
+        if(diff[0] > eps || fabs(diff[0]) < eps && diff[1] > eps
+                || fabs(diff[0]) < eps && fabs(diff[1]) < eps && diff[2] > eps)
+            he = he_t;
+    }
+    v = he->prev->startv;
     QVector3D A = QVector3D(v->vcoord[0], v->vcoord[1], v->vcoord[2]);
-    v = he->next->startv;
+    v = he->startv;
     QVector3D B = QVector3D(v->vcoord[0], v->vcoord[1], v->vcoord[2]);
-    v = he->next->next->startv;
+    v = he->next->startv;
     QVector3D C = QVector3D(v->vcoord[0], v->vcoord[1], v->vcoord[2]);
     QVector3D n = QVector3D::crossProduct(B-A, C-B).normalized();
 
     // 计算旋转到xy平面上的四元数
     float angle = acos(min(1.0f, QVector3D::dotProduct(n,QVector3D(0,0,1))));
     QVector3D rotAxis = QVector3D::crossProduct(n,QVector3D(0,0,1));
+    if(rotAxis.length() < eps) rotAxis = QVector3D(1,0,0);    // 法向与z轴共线，自定义旋转轴
     QQuaternion rotation = QQuaternion::fromAxisAndAngle(rotAxis,qRadiansToDegrees(angle));
-    if(n[2] + 1 < 10e-6) rotation = QQuaternion(0,0,1,0);   // 方向反向，旋转180度
 
     // 将面投影到二维平面上
     vector<vector<QVector2D> > face_2d; // 投影的二维面
@@ -293,7 +298,7 @@ bool RenderEngine::Triangulate(Face *f, vector<QVector3D> &vertexs, vector<int> 
                 if (find) break;
                 vector<QVector2D> loop_2d = face_2d[j];
                 for(int k = 0; k < loop_2d.size(); k++) {
-                    if((ptemp - loop_2d[k]).length() < 10e-6) {
+                    if((ptemp - loop_2d[k]).length() < eps) {
                         indices.push_back(v_num + offset + k);
                         find = true;
                         break;

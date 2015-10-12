@@ -32,28 +32,33 @@ out vec4 fragColor;
 
 void main()
 {
-    vec4 ambient = vec4(0.0, 0.0, 0.0, 0.0);
-    vec4 diffuse = vec4(0.0, 0.0, 0.0, 0.0);
-    vec4 spec    = vec4(0.0, 0.0, 0.0, 0.0);
+    if(gl_FrontFacing) {
+        vec4 ambient = vec4(0.0, 0.0, 0.0, 0.0);
+        vec4 diffuse = vec4(0.0, 0.0, 0.0, 0.0);
+        vec4 spec    = vec4(0.0, 0.0, 0.0, 0.0);
 
-    vec3 toEye = normalize(eyePos - v_position);
-    vec3 lightVec = -light.Direction;
+        vec3 toEye = normalize(eyePos - v_position);
+        vec3 lightVec = -light.Direction;
 
-    ambient = mat.Ambient * light.Ambient;
+        ambient = mat.Ambient * light.Ambient;
 
-    vec3 normal = normalize(cross(dFdx(v_position), dFdy(v_position)));
-    float diffuseFactor = dot(lightVec, normal);
+        vec3 normal = normalize(cross(dFdx(v_position), dFdy(v_position)));
 
-    if(diffuseFactor > 0.0) {
-        vec3 v = reflect(-lightVec, normal);
-        float specFactor = pow(max(dot(v, toEye), 0.0), mat.Specular.w);
+        float diffuseFactor = dot(lightVec, normal);
 
-        diffuse = diffuseFactor * mat.Diffuse * light.Diffuse;
-        spec = specFactor * mat.Specular * light.Specular;
+        if(diffuseFactor > 0.0) {
+            vec3 v = reflect(-lightVec, normal);
+            float specFactor = pow(max(dot(v, toEye), 0.0), mat.Specular.w);
+
+            diffuse = diffuseFactor * mat.Diffuse * light.Diffuse;
+            spec = specFactor * mat.Specular * light.Specular;
+        }
+
+        vec4 litColor = ambient + diffuse + spec;
+
+        fragColor = litColor;
+    } else {
+        fragColor = mat.Ambient;
     }
-
-    vec4 litColor = ambient + diffuse + spec;
-
-    fragColor = litColor;
 }
 
