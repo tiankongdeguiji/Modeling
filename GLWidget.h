@@ -82,6 +82,8 @@ private:
 
     qreal scrollDelta;
     QVector2D newMousePos, oldMousePos;
+
+    int renderNum;
 };
 
 #endif // GLWidget_H

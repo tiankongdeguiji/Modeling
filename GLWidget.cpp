@@ -48,9 +48,10 @@
 GLWidget::GLWidget(QWidget *parent) :
     QOpenGLWidget(parent),
     renderer(0),
-    scrollDelta(0)
+    scrollDelta(0),
+    renderNum(0)
 {
-//    rotation = QQuaternion::fromAxisAndAngle(QVector3D(1, 1, 1), -30);
+    rotation = QQuaternion::fromAxisAndAngle(QVector3D(1, 1, 1), -30);
 }
 
 GLWidget::~GLWidget()
@@ -72,6 +73,9 @@ void GLWidget::mousePressEvent(QMouseEvent *e)
 {
     oldMousePos = QVector2D(e->localPos());
     newMousePos = QVector2D(e->localPos());
+    if(e->buttons() & Qt::RightButton) renderNum++;
+    if(renderNum > 1) renderNum = 0;
+    update();
 }
 
 void GLWidget::mouseMoveEvent(QMouseEvent *e)
@@ -125,12 +129,12 @@ void GLWidget::resizeGL(int w, int h)
     // 计算屏幕宽高比
     aspect = qreal(w) / qreal(h ? h : 1);
     // 屏幕坐标和视口坐标的比例
-    radioScreenToView = h / 10.0;
+    radioScreenToView = h / 20.0;
 
     const qreal zNear = -100.0, zFar = 100.0;
     // 计算projection
     projection.setToIdentity();  
-    projection.ortho(-5.0*aspect, 5.0*aspect, -5.0, 5.0, zNear, zFar);
+    projection.ortho(-10.0*aspect, 10.0*aspect, -10.0, 10.0, zNear, zFar);
 }
 
 void GLWidget::paintGL()
@@ -138,8 +142,13 @@ void GLWidget::paintGL()
     renderer->SetProjection(projection);
     renderer->SetViewRotation(rotation);
     renderer->SetViewScale(1 - scrollDelta);
-    renderer->SetViewTranslation(QVector3D(translation.x(), -translation.y(), -5.0));
+    renderer->SetViewTranslation(QVector3D(translation.x(), -translation.y(), -10.0));
 
-    renderer->ClearBuffers();  
-    renderer->DrawModel();
+    renderer->ClearBuffers();
+    switch (renderNum) {
+    case 1: renderer->DrawModel();break;
+    case 0: renderer->DrawBezierModel();break;
+    default: break;
+    }
+
 }

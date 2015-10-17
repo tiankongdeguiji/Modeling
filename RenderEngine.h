@@ -78,24 +78,30 @@ public:
     void ClearBuffers();
 
     void DrawModel();
+    void DrawBezierModel();
 
 private:
 
     bool InitShaders();
     void InitModel();
+    void InitBezierModel();
     bool Triangulate(Face *f, std::vector<QVector3D> &vertexs, std::vector<int> &indices);
-
-    vector<QVector3D> m_vertexs;
-    vector<int> m_indices;
 
     QOpenGLShaderProgram program;
 
     DirectionalLight mDirLight;
 
+    vector<QVector3D> m_vertexs;
+    vector<int> m_indices;
     QOpenGLBuffer vertexBuffer;
     QOpenGLBuffer indexBuffer;
-    QOpenGLBuffer innerBuffer;
     QOpenGLVertexArrayObject vao;
+
+    vector<QVector3D> m_vertexs2;
+    vector<int> m_indices2;
+    QOpenGLBuffer vertexBuffer2;
+    QOpenGLBuffer indexBuffer2;
+    QOpenGLVertexArrayObject vao2;
 
     QMatrix4x4 projection;
     QQuaternion rotation;

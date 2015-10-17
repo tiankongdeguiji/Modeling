@@ -1,8 +1,9 @@
 #include "EulerOperation.h"
+#include <cmath>
+using namespace std;
 
 EulerOperation::EulerOperation()
 {
-
 }
 
 // 功能：构造一个体，一个面，一个外环，一个点
@@ -161,53 +162,189 @@ void EulerOperation::kfmrh(Face *f1, Face *f2)
     delete f2;
 }
 
-// 扫成操作
+// 平移扫成操作
 // 输入：f-扫成面，dir-扫成方向，d-扫成距离
-void EulerOperation::sweep(Face *f, double dir[3], double d)
+void EulerOperation::Sweep(Face *f, double dir[3], double d)
 {
-    Face *face = f, *face_out = NULL, *face_end;
-    Loop *l;
+    Loop *l = f->loops, *lp, *lp_out = NULL;
     Vertex *v_first, *v_next, *v_up, *v_up_pre, *v_up_first;
     HalfEdge *he;
     double p[3];
 
-    while(face->next != NULL) face = face->next;
-    face_end = face;
-
-    face = f->next;
-    while (face != NULL) {
-        l = face->loops;
+    while (l != NULL) {
         // 建造环上第一个点和其向上扫成的up点之间的边
         he = l->halfedges;
+        lp = he->adj->loop;
         v_first = he->startv;
         p[0] = v_first->vcoord[0] + d*dir[0];
         p[1] = v_first->vcoord[1] + d*dir[1];
         p[2] = v_first->vcoord[2] + d*dir[2];
-        v_up_first = v_up_pre = mev(v_first, p, l)->endv;
+        v_up_first = v_up_pre = mev(v_first, p, lp)->endv;
 
         // 循环扫成环上的其他点
         v_next = (he = he->next)->startv;
         while (v_next != v_first) {
-            // 建造环上第一个点和其向上扫成的up点之间的边
+            // 建造环上点和其向上扫成的up点之间的边
             p[0] = v_next->vcoord[0] + d*dir[0];
             p[1] = v_next->vcoord[1] + d*dir[1];
             p[2] = v_next->vcoord[2] + d*dir[2];
-            v_up = mev(v_next, p, l)->endv;
-            // 链接当前up点和起一个up点构造侧面
-            mef(v_up_pre, v_up, l);
+            v_up = mev(v_next, p, lp)->endv;
+            // 链接当前up点和前一个up点构造侧面
+            mef(v_up, v_up_pre, lp);
 
             v_up_pre = v_up;
             v_next = (he = he->next)->startv;
         }
-        mef(v_up_pre, v_up_first, l);
+        mef(v_up_first, v_up_pre, lp);
 
         // 内环建造柄
-        if (face_out == NULL) face_out = face;
-        else kfmrh(face_out, face);
+        if (lp_out == NULL) lp_out = lp;
+        else kfmrh(lp_out->face, lp->face);
 
-        if(face == face_end) break;
-        face = face->next;
+        l = l->next;
     }
+}
+
+// 贝塞尔平移扫成操作
+// 输入：f-扫成面，path-贝塞尔曲线的控制顶点
+void EulerOperation::BezierSweep(Face *f, vector<Point3D> path) {
+    double degree = path.size() - 1;
+
+    // 求取path所定义的bezier曲线的一阶导数和二阶导数的Control Point
+    vector<Point3D> path_der;
+    for(int i = 1; i < path.size(); i++)
+        path_der.push_back(degree*(path[i] - path[i-1]));
+
+    vector<Point3D> p, p_der;   // path path_der上的采样点值
+    vector<Point3D> N, BN;
+    int tess_num = 500;
+    double delta_t = 10e-5, u_cur;
+    for (int i = 0; i < tess_num; i++) {
+        u_cur = (double)i/(double)tess_num;
+        // 求取控制曲线上采样点的位置、一阶导数
+        p.push_back(deCasteljau(path, u_cur));
+        p_der.push_back(deCasteljau(path_der, u_cur));
+        // 求取控制曲线上采样点的主法向和副法向
+        Point3D p1 = deCasteljau(path_der, u_cur - delta_t).normalized();
+        Point3D p2 = deCasteljau(path_der, u_cur + delta_t).normalized();
+        N.push_back((p2-p1)/(2*delta_t));
+        // 处理法向翻转
+        if (i > 0) {
+            if (N[i].dot(N[i-1]) < 0) N[i] = -N[i];
+            if (N[i].norm() < 10e-6) N[i] = BN[i-1].cross(p_der[i]);
+        }
+        N[i] = N[i].normalized();
+        BN.push_back(p_der[i].cross(N[i]).normalized());
+    }
+
+    vector<Vertex*> vertexs;    // 缓存扫成面上所有的顶点
+    vector<Loop*> loops;        // 缓存扫成面上所有的loop
+    vector<vector<Point3D> > paths;     // 每个顶点所属控制曲线上的采样点数组
+    double theta_cos, theta_sin, dist;
+
+    Loop *l = f->loops;
+    Vertex *v_first, *v_next;
+    HalfEdge *he;
+    Point3D p_cur, p_new;
+    // 求取各顶点所属新控制曲线上的控制点
+    while (l != NULL) {
+        he = l->halfedges;
+        loops.push_back(he->adj->loop); // 缓存扫成loop
+        v_next = v_first = he->startv;
+        while (true) {
+            vertexs.push_back(v_next);  // 缓存扫成点
+            vector<Point3D> path_cur;
+            p_cur = Point3D(v_next->vcoord[0], v_next->vcoord[1], v_next->vcoord[2]);
+            // 计算扫成点与主副法向间的夹角，以及与曲线间的距离
+            theta_cos = (p_cur - path[0]).normalized().dot(N[0]);
+            theta_sin = (p_cur - path[0]).normalized().dot(BN[0]);
+            dist = (p_cur - path[0]).norm();
+            path_cur.push_back(p_cur);
+            // 计算上新的曲线上的采样点
+            for (int i = 1; i < tess_num; i++) {
+                p_new = p[i] + dist * (N[i]*theta_cos + BN[i]*theta_sin);
+                path_cur.push_back(p_new);
+            }
+            paths.push_back(path_cur);
+            v_next = (he = he->next)->startv;
+            if(v_next == v_first) break;
+        }
+        l = l->next;
+    }
+
+    int v_index = 0, v_first_index = 0, l_index = 0;
+    // 循环细分曲面
+    for (int i = 0; i < tess_num; i++) {
+        v_index = l_index = 0;
+        l = f->loops;
+        while (l != NULL) {
+            // 建造环上第一个点和其向上扫成的up点之间的边
+            he = l->halfedges;
+            v_first = he->startv;
+            v_first_index = v_index;
+            // 根据当前点所属的控制曲线计算细分的点
+            p_cur = paths[v_index][i];
+            vertexs[v_index] = mev(vertexs[v_index], p_cur.data(), loops[l_index])->endv;
+
+            // 循环扫成环上的其他点
+            v_next = (he = he->next)->startv;
+            while (v_next != v_first) {
+                v_index++;
+                // 建造环上点和其向上扫成的up点之间的边
+                p_cur = paths[v_index][i];
+                vertexs[v_index] = mev(vertexs[v_index], p_cur.data(), loops[l_index])->endv;
+                // 链接当前up点和前一个up点构造侧面
+                mef(vertexs[v_index], vertexs[v_index-1], loops[l_index]);
+                v_next = (he = he->next)->startv;
+            }
+            mef(vertexs[v_first_index], vertexs[v_index], loops[l_index]);
+            v_index++;
+
+            // 内环建造柄
+            if (i == tess_num - 1 && l_index > 0)
+                kfmrh(loops[0]->face, loops[l_index]->face);
+
+            l = l->next;
+            l_index++;
+        }
+    }
+}
+
+// 功能:求取控制曲线P上第i个Control Point所对应的Control Node
+double EulerOperation::SearchCtrlNode(vector<Point3D> &P, int i) {
+    double L, R, M1, M2;
+    Point3D p1, p2;
+    double v1, v2;
+    if(i == 0) return 0;
+    if(i == P.size()-1) return 1;
+    // 三分搜索
+    L = 0; R = 1;
+    while (L + 10e-6 < R)
+    {
+        M1 = L + (R - L) / 3;
+        M2 = R - (R - L) / 3;
+        p1 = deCasteljau(P,M1);
+        p2 = deCasteljau(P,M2);
+        v1 = (p1-P[i]).norm();
+        v2 = (p2-P[i]).norm();
+        if (v1 > v2) L= M1;
+        else R = M2;
+    }
+    return (L+R)/2;
+}
+
+// 功能：获取控制曲线P上u位置点的值
+Point3D EulerOperation::deCasteljau(vector<Point3D> &P, double u)  {
+    int n = P.size();
+    vector<Point3D> Q;
+    Q.resize(n);
+    for (int i = 0; i < n; i++)
+        Q[i] = P[i];
+    for (int j = 1; j < n; j++)
+        for(int i = 0; i < n - j; i++)
+            Q[i] = (1 - u)*Q[i] + u*Q[i + 1];
+
+    return Q[0];
 }
 
 // 功能：将一条半边添加到体的半边链表中

@@ -27,3 +27,5 @@ HEADERS += \
     polypartition.h
 
 RESOURCES += shaders.qrc
+
+#INCLUDEPATH += /usr/local/include/eigen3
