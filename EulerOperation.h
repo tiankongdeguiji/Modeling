@@ -14,7 +14,6 @@ private:
     void AddLoopIntoFace(Loop *l, Face *f);
     void SetUpEdge(Edge *e, Vertex *sv, Vertex *ev, HalfEdge *he1, HalfEdge *he2);
 
-    double SearchCtrlNode(std::vector<Point3D> &P, int i);
     Point3D deCasteljau(std::vector<Point3D> &P, double u);
 
 public:

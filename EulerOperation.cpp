@@ -310,29 +310,6 @@ void EulerOperation::BezierSweep(Face *f, vector<Point3D> path) {
     }
 }
 
-// 功能:求取控制曲线P上第i个Control Point所对应的Control Node
-double EulerOperation::SearchCtrlNode(vector<Point3D> &P, int i) {
-    double L, R, M1, M2;
-    Point3D p1, p2;
-    double v1, v2;
-    if(i == 0) return 0;
-    if(i == P.size()-1) return 1;
-    // 三分搜索
-    L = 0; R = 1;
-    while (L + 10e-6 < R)
-    {
-        M1 = L + (R - L) / 3;
-        M2 = R - (R - L) / 3;
-        p1 = deCasteljau(P,M1);
-        p2 = deCasteljau(P,M2);
-        v1 = (p1-P[i]).norm();
-        v2 = (p2-P[i]).norm();
-        if (v1 > v2) L= M1;
-        else R = M2;
-    }
-    return (L+R)/2;
-}
-
 // 功能：获取控制曲线P上u位置点的值
 Point3D EulerOperation::deCasteljau(vector<Point3D> &P, double u)  {
     int n = P.size();
