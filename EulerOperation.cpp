@@ -210,7 +210,7 @@ void EulerOperation::Sweep(Face *f, double dir[3], double d)
 void EulerOperation::BezierSweep(Face *f, vector<Point3D> path) {
     double degree = path.size() - 1;
 
-    // 求取path所定义的bezier曲线的一阶导数和二阶导数的Control Point
+    // 求取path所定义的bezier曲线的一阶导数Control Point
     vector<Point3D> path_der;
     for(int i = 1; i < path.size(); i++)
         path_der.push_back(degree*(path[i] - path[i-1]));
@@ -219,7 +219,7 @@ void EulerOperation::BezierSweep(Face *f, vector<Point3D> path) {
     vector<Point3D> N, BN;
     int tess_num = 500;
     double delta_t = 10e-5, u_cur;
-    for (int i = 0; i < tess_num; i++) {
+    for (int i = 0; i < tess_num + 1; i++) {
         u_cur = (double)i/(double)tess_num;
         // 求取控制曲线上采样点的位置、一阶导数
         p.push_back(deCasteljau(path, u_cur));
@@ -261,7 +261,7 @@ void EulerOperation::BezierSweep(Face *f, vector<Point3D> path) {
             dist = (p_cur - path[0]).norm();
             path_cur.push_back(p_cur);
             // 计算上新的曲线上的采样点
-            for (int i = 1; i < tess_num; i++) {
+            for (int i = 1; i < tess_num + 1; i++) {
                 p_new = p[i] + dist * (N[i]*theta_cos + BN[i]*theta_sin);
                 path_cur.push_back(p_new);
             }
@@ -274,7 +274,7 @@ void EulerOperation::BezierSweep(Face *f, vector<Point3D> path) {
 
     int v_index = 0, v_first_index = 0, l_index = 0;
     // 循环细分曲面
-    for (int i = 0; i < tess_num; i++) {
+    for (int i = 0; i < tess_num + 1; i++) {
         v_index = l_index = 0;
         l = f->loops;
         while (l != NULL) {

@@ -201,7 +201,7 @@ void RenderEngine::DrawModel()
     vao.release();
 }
 
-// Limited:控制顶点在曲线一侧
+// 初始化贝塞尔模型扫成数据
 void RenderEngine::InitBezierModel() {
     EulerOperation euler;
     double p[] = {
@@ -280,6 +280,7 @@ void RenderEngine::InitBezierModel() {
     vao2.release();
 }
 
+// 绘制贝塞尔模型
 void RenderEngine::DrawBezierModel()
 {
     vao2.bind();
